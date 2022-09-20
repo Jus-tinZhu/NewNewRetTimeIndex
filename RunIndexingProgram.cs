@@ -14,14 +14,13 @@ public class RunIndexingProgram
 			throw new Exception("directory empty or non existent");
         }
 
-		ChromatogramRetTimes[] master_index = new ChromatogramRetTimes[filenames.Length*2]; ///handle filename being null
+		List <ChromatogramRetTimes[]> master_index = new(); ///handle filename being null
 		for (int i=0; i<filenames.Length; i++)
 		{
 			if (File.Exists(filenames[i]))
             {
 				var two_chromos = GetPairedTimes(filenames[i]); ///master index adding
-				master_index[i*2] = two_chromos[0];
-				master_index[i*2+1] = two_chromos[1];
+				master_index.Add(two_chromos);
 			}
             else
             {
@@ -51,9 +50,11 @@ public class RunIndexingProgram
 		string[] whichChromo = filename.Split("_");
 		string chromo1name = whichChromo[^5];
 		string chromo2name = whichChromo[^1][..^4];
+		int chromo1day = int.Parse(chromo1name[1..]);
+		int chromo2day = int.Parse(chromo2name[1..]);
 
-		ChromatogramRetTimes retTimes1 = new(chromo1name, buffer1.ToArray());
-		ChromatogramRetTimes retTimes2 = new(chromo2name, buffer2.ToArray());
+		ChromatogramRetTimes retTimes1 = new(chromo1name, chromo1day, buffer1.ToArray());
+		ChromatogramRetTimes retTimes2 = new(chromo2name, chromo2day, buffer2.ToArray());
 
 		ChromatogramRetTimes[] returnArray = { retTimes1, retTimes2 }; 
 		return returnArray;

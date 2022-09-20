@@ -2,116 +2,97 @@
 /// <summary>
 /// chromas will be singular
 /// bins are each minute, [inclusive, exclusive)
+/// binned till further use
 /// </summary>
-/// 
-/// <summary>
-/// 
-/// </summary>
-/// <param name="rawtimes"></param>
-/// <param name="upperbound"></param>
-/// <exception cref="ArgumentException"></exception>
+
 public class ChromatogramRetTimes
 {
-	public string name; 
-	public float[][] retTimes;
-	public ChromatogramRetTimes(string new_name, float[] rawtimes)
-	{ ///upperbound value?
-		name = new_name;
-		float upperbound = rawtimes.Max();
+	public string name;
+	public int day;
+	public float[] retTimes;
 
-		retTimes = new float[ (int)Math.Ceiling(upperbound) ][]; ///upperbound for number arrays
-		Pre_Sanity_Checks(rawtimes, upperbound);
+	static private int base_size = 120 * 60 * 10 + 1;
+	static private int padding = 5 * 10; ///extra five seconds just in case
+	static private int arr_size = base_size + padding;
+
+	public ChromatogramRetTimes(string new_name, int new_day, float[] rawtimes) ///add bool for attaching nulls to nearest RT value
+	{
+		name = new_name;
+		day = new_day;
+		retTimes = new float[arr_size]; ///upperbound for number arrays
 		IndexRawTimes(rawtimes);
-		Post_Sanity_Checks(rawtimes.Length);
 	}
 	private void IndexRawTimes(float[] rawtimes)
-	{
-		float binUpperBound = 1;
-		List<float> buffer = new(); ///equal spaces
-
-		foreach (var time in rawtimes)
+	{ //add in seconds, minutes, then find deviation
+		for (int i = 0; i < rawtimes.Length; i++)
 		{
-			if (time >= binUpperBound)
-			{
-				retTimes[(int)binUpperBound - 1] = buffer.ToArray();
-				buffer.Clear();
-				int gap = (int)(time - binUpperBound); ///find array gap difference
+			retTimes[(int)rawtimes[i]] = rawtimes[i];
+		}
+		if (retTimes.Length > rawtimes.Length)
+		{
+			//Console.WriteLine("shortfile");
+			AttachEmptyIndexes();
+		}
+	}
 
-				for (int i = 0; i < gap; i++)
+	private void AttachEmptyIndexes()
+	{
+		for (int i = 0; i < this.retTimes.Length; i++)
+		{
+			if (this.retTimes[i] == 0 && i != 0)
+			{
+				FindNearestRTValue(i);
+			}
+		}
+	}
+	private void FindNearestRTValue(int index)
+	{
+		int upperindex = -1;
+		int lowerindex = -1;
+
+		if (index > 0)
+		{
+			for (int i = index - 1; i > 0; i--)
+			{
+				if (this.retTimes[i] != 0)
 				{
-					retTimes[i + (int)binUpperBound] = Array.Empty<float>();
-				}
-
-				binUpperBound += (gap + 1);
-			}
-			buffer.Add(time);
-		}
-		retTimes[(int)binUpperBound - 1] = buffer.ToArray(); ///add last array
-	}
-	private void Pre_Sanity_Checks(float[] raw_times, float upperbound) ///check size constraints
-	{
-		if (raw_times != null)
-        {
-			if(raw_times.Length > 0)
-            {
-				if (raw_times.Max() > upperbound && raw_times.Min() < 0) ///check negative values and max value 
-                {
-					string err_message = String.Format("range issue: \n Max: {0}\n Min: {1}", raw_times.Max(), raw_times.Min());
-					throw new Exception(err_message); //the max can be a little high, set with movable upper bound next time
+					lowerindex = i;
+					break;
 				}
 			}
-			else
+		}
+
+		if (index < this.retTimes.Length - 1)
+		{
+			for (int i = index + 1; i < this.retTimes.Length; i++)
 			{
-				throw new Exception("length issue");
+				if (this.retTimes[i] != -1)
+				{
+					upperindex = i;
+					break;
+				}
 			}
 		}
-        else
+
+		if (upperindex == -1 && lowerindex == 1)
+		{
+			this.retTimes[index] = 0;
+		}
+		if (upperindex == -1 && lowerindex != 1)
         {
-			throw new Exception("null issue");
-        }
-	}
-	private void Post_Sanity_Checks(int rawtimes_length) ///double check later
-	{
-		if (retTimes.Length > 121 || retTimes.Length < 120) ///length is managable
-		{
-			throw new Exception("test 1 fail");
+			this.retTimes[index] = upperindex;
 		}
-
-		for (int i = 0; i < retTimes.Length; i++)
+		else if (upperindex != -1 && lowerindex == 1)
 		{
-			int arr_length = retTimes[i].Length;
-			float[] sorted = new float[arr_length];///checking inner array is in order
-
-			Array.Copy(retTimes[i], sorted, arr_length);
-			Array.Sort(sorted);
-			
-			if (!Enumerable.SequenceEqual(sorted, retTimes[i]))
-			{
-				throw new Exception("test 2 fail");
-			}
+			this.retTimes[index] = lowerindex;
 		}
-
-		List<float> end_values = new(); ///checking outer array is in order and Total number of entries are same
-		int counter = 0;
-		for (int i = 0; i < retTimes.Length; i++)
+		else if ((index - lowerindex) > (upperindex - index))
 		{
-			if (retTimes[i].Count() > 0)
-			{
-				end_values.Add(retTimes[i].Min());
-				end_values.Add(retTimes[i].Max());
-			}
-			counter += retTimes[i].Count();
+			this.retTimes[index] = upperindex;
 		}
-
-		float[] sorted_ends = end_values.ToArray();
-		Array.Sort(sorted_ends);
-		if (!Enumerable.SequenceEqual(sorted_ends, end_values))
+		else ///can change this later for equalities.
 		{
-			throw new Exception("test 3 fail");
+			this.retTimes[index] = lowerindex;
 		}
-		if (counter != rawtimes_length)
-        {
-			throw new Exception("test 4 fail");
-        }
 	}
 }
